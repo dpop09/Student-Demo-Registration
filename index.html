@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Student Demo Registration</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+
+  <body>
+    <h1>Registered Students</h1>
+    <div class="table-list">
+      <table id="registered-students-table">
+        <tr>
+          <th>ID</th>
+          <th>First Name</th>
+          <th>Last Name</th>
+          <th>Project Title</th>
+          <th>Email Address</th>
+          <th>Phone Number</th>
+          <th>Time Slot</th>
+        </tr>
+      </table>
+    </div>
+    <div class="register-form">
+      <form id="register-form">
+        <label for="id">ID:</label>
+        <input type="text" id="id" placeholder="12345678" value="" />
+        <br /><br />
+        <label for="fname">First Name:</label>
+        <input type="text" id="fname" placeholder="John" value="" />
+        <br /><br />
+        <label for="lname">Last Name:</label>
+        <input type="text" id="lname" placeholder="Smith" value="" />
+        <br /><br />
+        <label for="project-name">Project Name:</label>
+        <input type="text" id="project-name" value="" />
+        <br /><br />
+        <label for="email">Email Address:</label>
+        <input
+          type="text"
+          id="email"
+          placeholder="johnsmith@website.com"
+          value=""
+        />
+        <br /><br />
+        <label for="phone-number">Phone Number: +1</label>
+        <input
+          type="text"
+          id="phone-number"
+          placeholder="999-999-9999"
+          value=""
+        />
+        <br /><br />
+        <label for="timeslot">Time Slot:</label>
+        <select id="timeslot" value="">
+          <option id="1ts-seats">4/19/2070, 6:00 PM - 7:00 PM</option>
+          <option id="2ts-seats">4/19/2070, 7:00 PM - 8:00 PM</option>
+          <option id="3ts-seats">4/19/2070, 8:00 PM - 9:00 PM</option>
+          <option id="4ts-seats">4/20/2070, 6:00 PM - 7:00 PM</option>
+          <option id="5ts-seats">4/20/2070, 7:00 PM - 8:00 PM</option>
+          <option id="6ts-seats">4/20/2070, 8:00 PM - 9:00 PM</option>
+        </select>
+        <br /><br />
+        <button type="submit" onclick="register()">Submit</button>
+      </form>
+    </div>
+    <script>
+      async function handlePrompt(id) {
+        var user_input = prompt(
+          "It seems you are already registered for a section. Would you like to change your registration to the new section and remove the current one? (y/n)"
+        );
+        while (user_input != "y" && user_input != "n") {
+          user_input = prompt(
+            "Invalid input.\nIt seems you are already registered for a section. Would you like to change your registration to the new section and remove the current one? (y/n)"
+          );
+        }
+        if (user_input == "y") {
+          try {
+            const response = await fetch("/delete-registration", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                id,
+              }),
+            });
+          } catch (error) {
+            console.error("Error deleting a registration.");
+          }
+          return false;
+        }
+        return true;
+      }
+      async function checkExistsId(id) {
+        try {
+          const response = await fetch("/check-id", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              id,
+            }),
+          });
+          if (response.ok) {
+            var isIdUnique = await response.json();
+            console.log(`Id is unique: ${isIdUnique}`);
+            return isIdUnique;
+          }
+        } catch (error) {
+          console.error("Error checking if ID is unique.");
+        }
+      }
+      async function updateTimeslots() {
+        try {
+          const TIMESLOTS = [
+            //array of all 6 timeslots
+            "4/19/2070, 6:00 PM - 7:00 PM ",
+            "4/19/2070, 7:00 PM - 8:00 PM ",
+            "4/19/2070, 8:00 PM - 9:00 PM ",
+            "4/20/2070, 6:00 PM - 7:00 PM ",
+            "4/20/2070, 7:00 PM - 8:00 PM ",
+            "4/20/2070, 8:00 PM - 9:00 PM ",
+          ];
+          const response = await fetch("/get-count");
+          var remaining_seats = await response.json();
+          for (let i = 0; i < remaining_seats.length; i++) {
+            document.getElementById(
+              i + 1 + "ts-seats"
+            ).innerText = `${TIMESLOTS[i]}(${remaining_seats[i]} seats remaining)`;
+            if (remaining_seats[i] <= 0) {
+              //if full
+              document.getElementById(i + 1 + "ts-seats").style.color = "red"; //change timeslot choice color to red
+            }
+          }
+        } catch (error) {
+          console.error("Error retriving count.");
+        }
+      }
+      async function register() {
+        event.preventDefault(); //ensures js code controls the submission process
+        var id = document.getElementById("id").value;
+        var fname = document.getElementById("fname").value;
+        var lname = document.getElementById("lname").value;
+        var project_name = document.getElementById("project-name").value;
+        var email_address = document.getElementById("email").value;
+        var phone_number = document.getElementById("phone-number").value;
+        var timeslot_arr = document.getElementById("timeslot").value.split("(");
+        var current_remaining_seats = timeslot_arr[1].split(" ", 1);
+        var timeslot = timeslot_arr[0];
+        if (
+          //check if any fields are missing
+          id === "" ||
+          fname === "" ||
+          lname === "" ||
+          project_name === "" ||
+          email_address === "" ||
+          phone_number === "" ||
+          timeslot === ""
+        ) {
+          //alert user submission failed and must fill all fields
+          alert("Submission failure: Fill all field inputs.");
+          return;
+        }
+        const ID_PATTERN = /^\d{8}$/;
+        if (!ID_PATTERN.test(id)) {
+          alert("Submission failure: ID must be 8 digits.");
+          return;
+        }
+        const NAME_PATTERN = /^[a-zA-Z]+$/;
+        if (!(NAME_PATTERN.test(fname) && NAME_PATTERN.test(lname))) {
+          alert(
+            "Submission failure: The first and last name fields must consist of alphabet letters only."
+          );
+          return;
+        }
+        const PHONE_NUMBER_PATTERN = /^\d{3}-\d{3}-\d{4}$/;
+        if (!PHONE_NUMBER_PATTERN.test(phone_number)) {
+          alert("Submission failure: Phone number is not formatted correctly.");
+          return;
+        }
+        const EMAIL_PATTERN =
+          /^[a-zA-Z0-9]+@[a-zA-Z0-9]+(\.[a-zA-Z0-9]{1,20}){1,}$/;
+        var domain = email_address.split("@")[1];
+        if (!(EMAIL_PATTERN.test(email_address) && domain.length <= 80)) {
+          alert("Submission failure: Email address is not formatted correctly");
+          return;
+        }
+        if (current_remaining_seats <= 0) {
+          alert("Submission failure: Selected timeslot is full.");
+          return;
+        }
+        var isIdUnique = await checkExistsId(id);
+        //if the id input is not unique
+        if (!isIdUnique) {
+          var exit = await handlePrompt(id);
+          if (exit) {
+            //if user wants to keep old registration, disregard new submission
+            document.getElementById("register-form").reset(); //reset the form
+            return;
+          }
+        }
+        try {
+          const response = await fetch("/register", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              id,
+              fname,
+              lname,
+              project_name,
+              email_address,
+              phone_number,
+              timeslot,
+            }),
+          });
+          if (response.ok) {
+            console.log("Student registered.");
+            window.location.reload(); //reload the page to update the registered students list and the timeslots remaining seats
+          }
+        } catch (error) {
+          console.error("Error sending data to server.", error);
+        }
+      }
+      async function loadStudents() {
+        try {
+          const response = await fetch("/get-students");
+          const rows = await response.json();
+          await updateTimeslots(); //update the timeslots remaining seats
+          const table = document.getElementById("registered-students-table");
+          rows.forEach((row) => {
+            const table_row = document.createElement("tr");
+            for (const key in row) {
+              const cell = document.createElement("td");
+              cell.textContent = row[key];
+              table_row.appendChild(cell);
+            }
+            table.appendChild(table_row);
+          });
+        } catch (error) {
+          console.error("Error fetching students", error);
+        }
+      }
+      //fill table with data whenever page loads
+      window.onload = loadStudents;
+    </script>
+  </body>
+</html>
