@@ -1,50 +1,73 @@
-import mysql from 'mysql2'
-import dotenv from 'dotenv'
-dotenv.config()
+import { MongoClient, ServerApiVersion } from 'mongodb';
+import dotenv from 'dotenv';
+dotenv.config();
 
-const pool = mysql.createPool({
-    host: process.env.MYSQL_HOST,
-    user: process.env.MYSQL_USER,
-    password: process.env.MYSQL_PASSWORD,
-    database: process.env.MYSQL_DATABASE
-}).promise()
+const URI = process.env.MONGODB_API_KEY // **dpop09** grab api key from .env file
+const client = new MongoClient(URI, {   // **dpop09** MongoClient is the object that references the connection to project database
+    serverApi: {
+        version: ServerApiVersion.v1,
+        strict: true,
+        deprecationErrors: true
+    }
+})
+
+const dbName = 'project3';
+const collectionName = 'registered_students';
 
 const dbOperations = {
     getAllRegisteredStudents: async function() {
-        const [rows] = await pool.query(`
-        SELECT * FROM registered_students
-        `)
-        return rows
-    },    
+        await client.connect();
+        const db = client.db(dbName);
+        const collection = db.collection(collectionName);
+
+        // user projection to exclude the _id field
+        const students = await collection.find({}, { projection: { _id: 0 } }).toArray();
+        await client.close();
+        return students;
+    },
     registerStudent: async function(id, fname, lname, project, email, phone_number, timeslot) {
-        const [result] = await pool.query(`
-        INSERT INTO registered_students (ID, fname, lname, project_name, email_address, phone_number, timeslot)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-        `, [id, fname, lname, project, email, phone_number, timeslot])
-        return result
+        await client.connect();
+        const db = client.db(dbName);
+        const collection = db.collection(collectionName);
+
+        const result = await collection.insertOne({
+            ID: id,
+            fname: fname,
+            lname: lname,
+            project_name: project,
+            email_address: email,
+            phone_number: phone_number,
+            timeslot: timeslot
+        });
+        await client.close();
+        return result;
     },
     getCount: async function(timeslot) {
-        const [[row]] = await pool.query(`
-        SELECT COUNT(*) FROM registered_students
-        WHERE timeslot = ?
-        `, [timeslot])
-        return row['COUNT(*)']
+        await client.connect();
+        const db = client.db(dbName);
+        const collection = db.collection(collectionName);
+
+        const count = await collection.countDocuments({ timeslot: timeslot });
+        await client.close();
+        return count;
     },
     isIdUnique: async function(id) {
-        const [[row]] = await pool.query(`
-        SELECT COUNT(*) FROM registered_students
-        WHERE ID = ?
-        `, [id])
-        if (row['COUNT(*)'] >= 1)
-            return false
-        return true
+        await client.connect();
+        const db = client.db(dbName);
+        const collection = db.collection(collectionName);
+
+        const count = await collection.countDocuments({ ID: id });
+        await client.close();
+        return count === 0;
     },
     deleteStudent: async function(id) {
-        const [result] = await pool.query(`
-        DELETE FROM registered_students
-        WHERE ID = ?
-        `, [id])
-        return result
+        await client.connect();
+        const db = client.db(dbName);
+        const collection = db.collection(collectionName);
+
+        const result = await collection.deleteOne({ ID: id });
+        await client.close();
+        return result;
     }
 }
 
